@@ -167,10 +167,6 @@ async def main():
             if not extracted_headline_texts:
                 logging.warning("WARNING: No main headlines extracted from Drudge. Check selectors.")
 
-            excluded_text_keywords = [
-                "link", "archives", "drudge", "search", "donate", "contact", "mail", "tip", "jobs", "advertise",
-                "feedback", "sitemap", "privacy", "terms", "about"
-            ]
             excluded_domains = [
                 "drudgereport.com", "foxnews.com", "cnn.com", "reuters.com", "nytimes.com", "wsj.com",
                 "breitbart.com", "dailymail.co.uk", "washingtontimes.com", "washingtonexaminer.com",
@@ -229,21 +225,17 @@ async def main():
                     absolute_href = urljoin(drudge_url, href)
 
                 should_exclude = False
-                lower_text = text.lower()
-                for keyword in excluded_text_keywords:
-                    if keyword.lower() in lower_text:
-                        should_exclude = True
-                        break
-                if should_exclude:
-                    filtered_out_count += 1
-                    continue
+                # Removed excluded_text_keywords filtering
 
                 try:
                     parsed_url = urlparse(absolute_href)
                     hostname = parsed_url.hostname.lower() if parsed_url.hostname else ''
-                    if hostname.startswith('www.'): hostname = hostname[4:]
+                    if hostname.startswith('www.'):
+                        hostname = hostname[4:]
+                    # Only exclude if the link is exactly the excluded domain (no path, query, or fragment)
                     if hostname in excluded_domains:
-                        should_exclude = True
+                        if (not parsed_url.path or parsed_url.path == '/') and not parsed_url.query and not parsed_url.fragment:
+                            should_exclude = True
                 except ValueError:
                     logging.warning(f"Could not parse URL for exclusion check: {absolute_href}")
                     pass
