@@ -1,0 +1,13 @@
+{
+    "actorSpecification": 1,
+    "name": "my-actor-2",
+    "title": "Getting started with Python and BeautifulSoup",
+    "description": "Scrapes titles of websites using BeautifulSoup.",
+    "version": "0.0",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "python-beautifulsoup"
+    },
+    "input": "./input_schema.json",
+    "dockerfile": "./Dockerfile"
+}

@@ -1,0 +1,27 @@
+{
+    "title": "Drudge Report Scraper",
+    "description": "Scrape Drudge Report headlines and links.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "startUrls": {
+            "title": "Start URLs",
+            "type": "array",
+            "description": "One or more URLs of pages to start crawling.",
+            "editor": "requestListSources",
+            "prefill": [
+                {
+                    "url": "https://www.drudgereport.com"
+                }
+            ]
+        },
+        "maxCrawlPages": {
+            "title": "Max pages",
+            "type": "integer",
+            "description": "Maximum number of pages to crawl. For Drudge Report, set to 1.",
+            "minimum": 1,
+            "default": 1,
+            "prefill": 1
+        }
+    }
+}
