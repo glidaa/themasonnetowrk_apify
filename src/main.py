@@ -167,51 +167,8 @@ async def main():
             if not extracted_headline_texts:
                 logging.warning("WARNING: No main headlines extracted from Drudge. Check selectors.")
 
-            excluded_domains = [
-                "drudgereport.com", "foxnews.com", "cnn.com", "reuters.com", "nytimes.com", "wsj.com",
-                "breitbart.com", "dailymail.co.uk", "washingtontimes.com", "washingtonexaminer.com",
-                "news.google.com", "apnews.com", "cbsnews.com", "abcnews.go.com", "nbcnews.com",
-                "msnbc.com", "usatoday.com", "nypost.com", "thehill.com", "politico.com",
-                "washingtonpost.com", "latimes.com", "sfgate.com", "chicagotribune.com",
-                "weeklystandard.com", "nationalreview.com", "dailycaller.com",
-                "realclearpolitics.com", "thegatewaypundit.com", "infowars.com", "rt.com",
-                "sputniknews.com", "theguardian.com", "independent.co.uk", "bbc.co.uk",
-                "apify.com", "googleusercontent.com", "twitter.com", "facebook.com",
-                "instagram.com", "reddit.com", "telegram.org", "bitchute.com", "rumble.com",
-                "trends.google.com", "pressreader.com", "news.sky.com", "boxofficemojo.com",
-                "ustvdb.com", "abcnews.com", "theatlantic.com", "axios.com",
-                "billboard.com", "boston.com", "bostonherald.com", "businessinsider.com",
-                "cbslocal.com", "c-span.org", "suntimes.com", "csmonitor.com", "cnbc.com",
-                "crazydaysandnights.net", "thedailybeast.com", "deadline.com", "elnuevodia.com",
-                "ew.com", "thefp.com", "hollywoodreporter.com", "huffingtonpost.com",
-                "theintercept.com", "dailynewslosangeles.com", "marketwatch.com",
-                "mediaite.com", "motherjones.com", "thenation.com", "thenewrepublic.com",
-                "nymag.com", "nydailynews.com", "newyorker.com", "newsmax.com",
-                "newzit.com", "people.com", "rawstory.com", "reason.org",
-                "rollcall.com", "rollingstone.com", "salon.com", "semafor.com",
-                "showbiz411.com", "sky.com", "thesmokinggun.com", "tmz.com",
-                "usnews.com", "vanityfair.com", "variety.com", "online.wsj.com",
-                "worldofreel.com", "thewrap.com", "africanews.com", "arabnews.com",
-                "bild.de", "en.people.cn", "clarin.com", "welt.de",
-                "zeit.de", "economist.com", "elmundo.es", "english.elpais.com",
-                "ft.com", "folha.uol.com.br", "wyborcza.pl", "gbnews.com",
-                "haaretz.com", "hindustantimes.com", "hurriyetdailynews.com",
-                "japantimes.co.jp", "jpost.com", "la-prensa.com.mx", "repubblica.it",
-                "lefigaro.fr", "lemonde.fr", "lesoir.be", "themoscowtimes.com",
-                "theneweuropean.co.uk", "asia.nikkei.com", "riotimesonline.com",
-                "smh.com.au", "timesofindia.indiatimes.com", "mirror.co.uk",
-                "dailystar.co.uk", "express.co.uk", "metro.co.uk", "standard.co.uk",
-                "thesun.co.uk", "telegraph.co.uk", "thetimes.com", "japannews.yomiuri.co.jp",
-                "france24.com", "player.streamguys.com",
-                "bloomberg.com", "nordot.app", "dw.com", "interfax.com",
-                "itar-tass.com", "english.kyodonews.net", "mcclatchydc.com",
-                "nhk.or.jp", "pravdareport.com", "ptinews.com", "xinhuanet.com",
-                "english.yonhapnews.co.kr", "drudgereportarchives.com", "zoom.earth",
-                "theyeshivaworld.com"
-            ]
-
+            # Scrape every <a> link and save the text and href, no exclusions or OpenAI processing
             extracted_link_count = 0
-            filtered_out_count = 0
             for link in soup.find_all('a', href=True):
                 href = link['href']
                 text = link.get_text(strip=True)
@@ -224,25 +181,6 @@ async def main():
                 else:
                     absolute_href = urljoin(drudge_url, href)
 
-                should_exclude = False
-                # Removed excluded_text_keywords filtering
-
-                try:
-                    parsed_url = urlparse(absolute_href)
-                    hostname = parsed_url.hostname.lower() if parsed_url.hostname else ''
-                    if hostname.startswith('www.'):
-                        hostname = hostname[4:]
-                    # Only exclude if the link is exactly the excluded domain (no path, query, or fragment)
-                    if hostname in excluded_domains:
-                        if (not parsed_url.path or parsed_url.path == '/') and not parsed_url.query and not parsed_url.fragment:
-                            should_exclude = True
-                except ValueError:
-                    logging.warning(f"Could not parse URL for exclusion check: {absolute_href}")
-                    pass
-                if should_exclude:
-                    filtered_out_count += 1
-                    continue
-
                 initial_drudge_links.append({"text": text, "href": absolute_href})
                 await Actor.push_data(data={
                     "type": "link",
@@ -252,43 +190,7 @@ async def main():
                 })
                 extracted_link_count += 1
 
-            logging.info(f"Extracted {extracted_link_count} initial Drudge links after filtering.")
-            logging.info(f"Filtered out {filtered_out_count} initial Drudge links.")
-
-            if not openai_api_key:
-                logging.warning("Skipping Stage 2 (OpenAI processing) because OPENAI_API_KEY is not set.")
-            else:
-                logging.info(f"Starting Stage 2: Processing {len(initial_drudge_links)} collected links...")
-                processed_link_count = 0
-                for link_info in initial_drudge_links:
-                    url = link_info["href"]
-                    original_text = link_info["text"]
-
-                    logging.info(f"Checking link: {url}")
-                    is_iframe_compatible = await check_iframe_compatibility(url)
-
-                    if not is_iframe_compatible:
-                        logging.info(f"  Link '{url}' is NOT iframe compatible. Attempting to generate story.")
-                        article_content = await get_page_main_content(url)
-
-                        if article_content:
-                            generated_story = await generate_story_with_openai(article_content, openai_api_key)
-                            await Actor.push_data(data={
-                                "type": "generated_story",
-                                "original_link_text": original_text,
-                                "original_link_href": url,
-                                "generated_story": generated_story,
-                                "story_generation_timestamp": datetime.datetime.now().isoformat()
-                            })
-                            logging.info(f"  Generated and saved story for '{url}'.")
-                        else:
-                            logging.warning(f"  No content extracted from '{url}' for story generation.")
-                    else:
-                        logging.info(f"  Link '{url}' IS iframe compatible. Skipping story generation.")
-
-                    processed_link_count += 1
-
-                logging.info(f"Finished Stage 2: Processed {processed_link_count} links.")
+            logging.info(f"Extracted {extracted_link_count} Drudge links.")
 
         except httpx.HTTPStatusError as e:
             logging.error(f"HTTP error during main scrape of Drudge Report: {e.response.status_code} {e.response.reason_phrase}")
