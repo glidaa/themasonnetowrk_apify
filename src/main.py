@@ -181,12 +181,14 @@ async def main():
                 else:
                     absolute_href = urljoin(drudge_url, href)
 
-                initial_drudge_links.append({"text": text, "href": absolute_href})
+                position = extracted_link_count + 1
+                initial_drudge_links.append({"text": text, "href": absolute_href, "position": position})
                 await Actor.push_data(data={
                     "type": "link",
                     "text": text if text else f"[Link to {absolute_href}]",
                     "href": absolute_href,
-                    "scrape_timestamp": datetime.datetime.now().isoformat()
+                    "scrape_timestamp": datetime.datetime.now().isoformat(),
+                    "position": position
                 })
                 extracted_link_count += 1
 
